@@ -1,0 +1,28 @@
+guild_id: 1376
+anchor_id: 18633
+package_group_id: 1
+uuid: ""
+guild_per: 0.9
+profit_ratio:
+  default: 2.64
+  "0": 1.8
+  "6": 4.32
+db:
+  main:
+    host: "api.example.com"
+    port: 3306
+    username: "root"
+    password: "your_master_password"
+    database: "your_database"
+  place:
+    host: "api.example.com"
+    port: 3306
+    username: "root"
+    password: "your_slave_password"
+    database: "your_slave_database"
+  clearing:
+    host: "api.example.com"
+    port: 3306
+    username: "root"
+    password: "your_slave_password"
+    database: "your_slave_database"
