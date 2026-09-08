@@ -136,7 +136,7 @@ async function addByDate(date: Dayjs) {
     {
       when: random(date.unix(), date.unix() + 86400, false),
       why: 99,
-      money: Decimal(0).sub(giftPrice).toString(),
+      money: Decimal(0).sub(giftPrice).div(2).ceil().toString(),
       userid: 0,
       touserid: config.anchor_id,
       to_guild_id: config.guild_id,
