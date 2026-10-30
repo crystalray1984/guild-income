@@ -7,6 +7,7 @@ import { GuildPackagePer } from "./GuildPackagePer";
 import { GuildProfitReport } from "./GuildProfitReport";
 import { UserAssetsConsumable } from "./UserAssetsConsumable";
 import { BalanceChangeLog } from "./BalanceChangeLog";
+import { Orders } from "./Orders";
 
 const typeCast: TypeCast = (field, next) => {
   if (field.type === "DATETIME" || field.type === "DATETIME2") {
@@ -25,7 +26,7 @@ export const db = new Sequelize({
   },
   timezone: "+08:00",
   ...config.db.main,
-  models: [Guild, GuildPackagePer, BalanceChangeLog],
+  models: [Guild, GuildPackagePer, BalanceChangeLog, Orders],
 });
 
 export const dbPlace = new Sequelize({
@@ -54,3 +55,4 @@ export { GuildPackagePer } from "./GuildPackagePer";
 export { GuildProfitReport } from "./GuildProfitReport";
 export { UserAssetsConsumable } from "./UserAssetsConsumable";
 export { BalanceChangeLog } from "./BalanceChangeLog";
+export { Orders } from "./Orders";

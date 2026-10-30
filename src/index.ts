@@ -19,8 +19,8 @@ import {
   Guild,
   GuildProfitReport,
   UserAssetsConsumable,
+  Orders,
 } from "./db";
-import { Orders } from "./db/Orders";
 
 process.env.TZ = "Asia/Shanghai";
 
