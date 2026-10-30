@@ -20,6 +20,7 @@ interface ConfigData {
     place: Partial<SequelizeOptions>;
     clearing: Partial<SequelizeOptions>;
   };
+  user_id: number;
 }
 
 export const config = ((): ConfigData => {
