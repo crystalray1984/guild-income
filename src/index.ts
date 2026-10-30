@@ -79,6 +79,7 @@ async function addByDate(date: Dayjs) {
       values: [
         date.clone().startOf("month").unix(),
         date.clone().add(1, "day").unix(),
+        config.package_group_id,
       ],
     },
     { type: QueryTypes.SELECT },
