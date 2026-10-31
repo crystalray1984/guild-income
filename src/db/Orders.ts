@@ -67,7 +67,7 @@ export class Orders extends Model<
   declare paychannel: number;
 
   @Column(DataType.STRING)
-  declare pay_type: string;
+  declare paytype: string;
 
   /**
    * 用户增加的钻石数

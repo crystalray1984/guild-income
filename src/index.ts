@@ -252,7 +252,7 @@ async function addByDate(date: Dayjs) {
       create_time: dayjs().toDate(),
       is_dispose: 1,
       payment_time: dayjs().unix(),
-      pay_type: useChannel.name,
+      paytype: useChannel.name,
     },
     { returning: false },
   );
