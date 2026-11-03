@@ -144,7 +144,7 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
     },
   });
 
-  return Decimal.min(Decimal(allConsume).mul("0.06"), sum);
+  return Decimal.min(Decimal(allConsume).mul("-0.06"), sum);
 }
 
 async function addByDate(date: Dayjs) {
