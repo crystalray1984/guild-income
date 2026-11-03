@@ -169,9 +169,9 @@ async function addByDate(date: Dayjs) {
 
   //查询可用收益
   const usable = await getUsableProfit(date);
-  if (usable.lte(0)) {
+  if (usable.lt(100)) {
     console.log(
-      `date=${date.format("YYYY-MM-DD")} week=${date.day()} ratio=${ratio.toString()} 无可用收益`,
+      `date=${date.format("YYYY-MM-DD")} week=${date.day()} ratio=${ratio.toString()} 可用收益不足 ${usable.toDecimalPlaces(2)}`,
     );
     return;
   }
@@ -180,7 +180,7 @@ async function addByDate(date: Dayjs) {
   const max = ratio.mul(3300);
 
   let giftPrice = max.sub(min).mul(Math.random()).add(min).floor();
-  giftPrice = Decimal.min(giftPrice, usable);
+  giftPrice = Decimal.min(giftPrice, usable.floor());
 
   const giftPriceMoney = giftPrice.div(10);
   const diamonds = giftPrice.mul(config.guild_per).toDecimalPlaces(3);
