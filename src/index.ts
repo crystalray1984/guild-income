@@ -308,6 +308,14 @@ async function test2() {
   }
 }
 
+test2()
+  .catch((err) => {
+    console.error(err);
+  })
+  .finally(() => {
+    process.exit();
+  });
+
 // main()
 //   .catch((err) => {
 //     console.error(err);
