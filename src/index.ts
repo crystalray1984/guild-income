@@ -127,7 +127,7 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
   });
 
   //系统招商公会拿3分之一
-  sum.add(Decimal(merchatProfit).div(3));
+  // sum.add(Decimal(merchatProfit).div(3));
 
   //所有的收益不能超过总消费的6%
   const allConsume = await BalanceChangeLog.sum("money", {
@@ -163,7 +163,8 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
     },
   });
 
-  return value.sub(Decimal(allProfit ?? 0).mul(10));
+  return value;
+  // return value.sub(Decimal(allProfit ?? 0).mul(10));
 }
 
 async function addByDate(date: Dayjs) {
