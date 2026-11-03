@@ -129,7 +129,22 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
   //系统招商公会拿3分之一
   sum.add(Decimal(merchatProfit).div(3));
 
-  return sum;
+  //所有的收益不能超过总消费的6%
+  const allConsume = await BalanceChangeLog.sum("money", {
+    where: {
+      why: {
+        [Op.gt]: 0,
+      },
+      when: {
+        [Op.gte]: monthStart.unix(),
+        [Op.lt]: date.add(1, "day").unix(),
+      },
+      user_package_group_id: config.package_group_id,
+      touser_package_group_id: config.package_group_id,
+    },
+  });
+
+  return Decimal.min(Decimal(allConsume).mul("0.06"), sum);
 }
 
 async function addByDate(date: Dayjs) {
