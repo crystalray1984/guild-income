@@ -147,7 +147,23 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
     },
   });
 
-  return Decimal.min(Decimal(allConsume).mul("-0.06"), sum);
+  const value = Decimal.min(Decimal(allConsume).mul("-0.06"), sum);
+
+  //减掉已分配的收益
+  const allProfit = await AnchorDayReport.sum("gift_price", {
+    where: {
+      guild_id: config.guild_id,
+      anchor_id: config.anchor_id,
+      day_time: {
+        [Op.between]: [
+          parseInt(monthStart.format("YYYYMMDD")),
+          parseInt(date.format("YYYYMMDD")),
+        ],
+      },
+    },
+  });
+
+  return value.sub(Decimal(allProfit).mul(10));
 }
 
 async function addByDate(date: Dayjs) {
