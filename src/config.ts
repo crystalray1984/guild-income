@@ -21,6 +21,7 @@ interface ConfigData {
     clearing: Partial<SequelizeOptions>;
   };
   user_id: number;
+  root_merchant_id: number;
 }
 
 export const config = ((): ConfigData => {

@@ -7,6 +7,7 @@ import {
   literal,
   Model,
   ModelStatic,
+  Op,
   QueryTypes,
   WhereOptions,
 } from "sequelize";
@@ -23,6 +24,113 @@ import {
 } from "./db";
 
 process.env.TZ = "Asia/Shanghai";
+
+/**
+ * 计算指定日期可用的收益
+ * @param date
+ */
+async function getUsableProfit(date: Dayjs): Promise<Decimal> {
+  const monthStart = date.clone().startOf("month");
+
+  //查询内购充值数量
+  const iapRechargeRows = await db.query<{
+    money: Decimal.Value;
+    diamonds: Decimal.Value;
+  }>(
+    {
+      query: `
+      SELECT
+        SUM(money) * 10 AS money,
+        SUM(balanceadd) AS diamonds
+      FROM
+        orders
+      WHERE
+        paytype IN (?)
+        AND status = 1
+        AND payment_time >= ?
+        AND payment_time < ?
+      `,
+      values: [
+        ["iospay", "googlepay_bmiss"],
+        monthStart.unix(),
+        date.clone().add(1, "days").unix(),
+      ],
+    },
+    {
+      type: QueryTypes.SELECT,
+    },
+  );
+
+  //查询三方充值数量
+  const thirdRechargeRows = await db.query<{
+    channel_id: number;
+    money: Decimal.Value;
+    diamonds: Decimal.Value;
+    fee_ratio: Decimal.Value;
+    origin_fee_ratio: Decimal.Value;
+  }>(
+    {
+      query: `
+      SELECT
+        orders.paychannel AS channel_id,
+        SUM(orders.money) * 10 AS money,
+        SUM(orders.balanceadd) AS diamonds,
+        web3_pay_targets.fee_ratio,
+        web3_pay_targets.origin_fee_ratio
+      FROM
+        orders
+      JOIN
+        web3_pay_targets ON web3_pay_targets.id = orders.paychannel
+      JOIN
+        v2_user_config ON v2_user_config.user_id = orders.userid
+      WHERE
+        orders.status = 1
+        AND v2_user_config.package_group_id = ?
+        AND orders.payment_time >= ?
+        AND orders.payment_time < ?
+      GROUP BY
+        orders.paychannel
+      `,
+      values: [
+        config.package_group_id,
+        monthStart.unix(),
+        date.clone().add(1, "days").unix(),
+      ],
+    },
+    {
+      type: QueryTypes.SELECT,
+    },
+  );
+
+  //查询招商收益
+  const merchatProfit = await GuildProfitReport.sum("investment_profit", {
+    where: {
+      guild_id: config.root_merchant_id,
+      day_time: {
+        [Op.between]: [
+          parseInt(monthStart.format("YYYYMMDD")),
+          parseInt(date.format("YYYYMMDD")),
+        ],
+      },
+    },
+  });
+
+  //内购充值拿5%
+  let sum = Decimal(iapRechargeRows[0].money).mul("0.05");
+
+  //三方充值拿手续费差
+  thirdRechargeRows.forEach((third) => {
+    const delta = Decimal(third.fee_ratio).sub(third.origin_fee_ratio);
+    if (delta.greaterThan(0)) {
+      sum = sum.add(Decimal(third.diamonds).mul(delta).div(100));
+    }
+  });
+
+  //系统招商公会拿3分之一
+  sum.add(Decimal(merchatProfit).div(3));
+
+  return sum;
+}
 
 async function addByDate(date: Dayjs) {
   let ratio: Decimal;
@@ -49,93 +157,6 @@ async function addByDate(date: Dayjs) {
   const diamondsMoney = diamonds.div(10);
 
   const consume = giftPrice.div(2).ceil().toNumber();
-
-  const channels = await db.query<{
-    id: number;
-    name: string;
-    diamonds: string;
-    money: string;
-  }>(
-    {
-      query: `
-      SELECT
-        web3_pay_targets.id,
-        web3_pay_type.name,
-        SUM(orders.balanceadd) / 10 AS diamonds,
-        SUM(orders.money) AS money
-      FROM
-        orders
-      JOIN
-        web3_pay_targets ON web3_pay_targets.id = orders.paychannel
-      JOIN
-        web3_pay_type ON web3_pay_type.name = web3_pay_targets.pay_channel_type
-      WHERE
-        orders.status = 1
-        AND orders.payment_time >= ? AND orders.payment_time < ?
-        AND web3_pay_type.package_group_id = ?
-      GROUP BY
-        web3_pay_targets.id
-      `,
-      values: [
-        date.clone().startOf("month").unix(),
-        date.clone().add(1, "day").unix(),
-        config.package_group_id,
-      ],
-    },
-    { type: QueryTypes.SELECT },
-  );
-
-  const sumChannels: Record<
-    string,
-    {
-      channels: typeof channels;
-      diamonds: Decimal;
-      money: Decimal;
-      ratio: Decimal;
-    }
-  > = {};
-
-  channels.forEach((channel) => {
-    if (!sumChannels[channel.name]) {
-      sumChannels[channel.name] = {
-        channels: [channel],
-        diamonds: Decimal(channel.diamonds),
-        money: Decimal(channel.money),
-        ratio: undefined as unknown as Decimal,
-      };
-    } else {
-      const summary = sumChannels[channel.name];
-      summary.channels.push(channel);
-      summary.diamonds = summary.diamonds.add(channel.diamonds);
-      summary.money = summary.money.add(channel.diamonds);
-    }
-  });
-
-  const channelKeys = Object.keys(sumChannels);
-  for (const key of channelKeys) {
-    const summary = sumChannels[key];
-    const after = Decimal(summary.diamonds).add(consume);
-    if (after.div(summary.money).gte("0.93")) {
-      delete sumChannels[key];
-    } else {
-      summary.ratio = Decimal(summary.diamonds).div(summary.money);
-    }
-  }
-
-  if (Object.keys(sumChannels).length === 0) {
-    console.log(`date=${date.format("YYYY-MM-DD")} 无通道 退出`);
-    return;
-  }
-
-  const listTypes = Object.values(sumChannels).sort((channel1, channel2) =>
-    channel1.ratio.comparedTo(channel2.ratio),
-  );
-
-  const useType = listTypes[0];
-  const useChannels = useType.channels.sort((c1, c2) =>
-    Decimal(c2.diamonds).comparedTo(c1.diamonds),
-  );
-  const useChannel = useChannels[0];
 
   await Guild.increment(
     {
@@ -223,40 +244,6 @@ async function addByDate(date: Dayjs) {
     { where: { uuid: config.uuid } },
   );
 
-  await BalanceChangeLog.create(
-    {
-      when: random(date.unix(), date.unix() + 86400, false),
-      why: 99,
-      money: Decimal(0).sub(consume).toString(),
-      userid: 0,
-      touserid: config.anchor_id,
-      to_guild_id: config.guild_id,
-      user_package_group_id: config.package_group_id,
-      touser_package_group_id: config.package_group_id,
-    },
-    { returning: false },
-  );
-
-  Orders.create(
-    {
-      types: 0,
-      adddate: day_time,
-      money: "0",
-      userid: config.user_id,
-      status: 1,
-      paychannel: useChannel.id,
-      balanceadd: consume,
-      agentid: 0,
-      lastupdate: dayjs().unix(),
-      current: dayjs().toDate(),
-      create_time: dayjs().toDate(),
-      is_dispose: 1,
-      payment_time: dayjs().unix(),
-      paytype: useChannel.name,
-    },
-    { returning: false },
-  );
-
   console.log(
     `date=${date.format("YYYY-MM-DD")} week=${date.day()} ratio=${ratio.toString()} price=${giftPrice.toString()} diamonds=${diamonds.toString()}`,
   );
@@ -309,10 +296,22 @@ async function main() {
   }
 }
 
-main()
-  .catch((err) => {
-    console.error(err);
-  })
-  .finally(() => {
-    process.exit();
-  });
+async function test2() {
+  const end = dayjs("2026/10/31 0:00:00");
+  for (
+    let date = dayjs("2026/10/01 0:00:00");
+    date.valueOf() <= end.valueOf();
+    date = date.add(1, "day")
+  ) {
+    const usable = await getUsableProfit(date);
+    console.log(date.format("YYYY-MM-DD"), usable.toFixed(2));
+  }
+}
+
+// main()
+//   .catch((err) => {
+//     console.error(err);
+//   })
+//   .finally(() => {
+//     process.exit();
+//   });

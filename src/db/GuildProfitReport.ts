@@ -45,6 +45,10 @@ export class GuildProfitReport extends Model<
   declare gift_price: CreationOptional<string>;
 
   @AllowNull(false)
+  @Column(DataType.DECIMAL)
+  declare investment_profit: CreationOptional<string>;
+
+  @AllowNull(false)
   @Column(DataType.INTEGER)
   declare year_time: number;
 
