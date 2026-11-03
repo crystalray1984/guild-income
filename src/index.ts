@@ -102,19 +102,6 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
     },
   );
 
-  //查询招商收益
-  const merchatProfit = await GuildProfitReport.sum("investment_profit", {
-    where: {
-      guild_id: config.root_merchant_id,
-      day_time: {
-        [Op.between]: [
-          parseInt(monthStart.format("YYYYMMDD")),
-          parseInt(date.format("YYYYMMDD")),
-        ],
-      },
-    },
-  });
-
   //内购充值拿5%
   let sum = Decimal(iapRechargeRows[0].money).mul("0.05");
 
@@ -125,9 +112,6 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
       sum = sum.add(Decimal(third.diamonds).mul(delta).div(100));
     }
   });
-
-  //系统招商公会拿3分之一
-  // sum.add(Decimal(merchatProfit).div(3));
 
   //所有的收益不能超过总消费的6%
   const allConsume = await BalanceChangeLog.sum("money", {
@@ -163,8 +147,7 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
     },
   });
 
-  return value;
-  // return value.sub(Decimal(allProfit ?? 0).mul(10));
+  return value.sub(Decimal(allProfit ?? 0).mul(10));
 }
 
 async function addByDate(date: Dayjs) {
@@ -181,17 +164,27 @@ async function addByDate(date: Dayjs) {
     console.log(
       `date=${date.format("YYYY-MM-DD")} week=${date.day()} ratio=${ratio.toString()} skiped`,
     );
+    return;
+  }
+
+  //查询可用收益
+  const usable = await getUsableProfit(date);
+  if (usable.lte(0)) {
+    console.log(
+      `date=${date.format("YYYY-MM-DD")} week=${date.day()} ratio=${ratio.toString()} 无可用收益`,
+    );
+    return;
   }
 
   const min = ratio.mul(1500);
   const max = ratio.mul(3300);
 
-  const giftPrice = max.sub(min).mul(Math.random()).add(min).floor();
+  let giftPrice = max.sub(min).mul(Math.random()).add(min).floor();
+  giftPrice = Decimal.min(giftPrice, usable);
+
   const giftPriceMoney = giftPrice.div(10);
   const diamonds = giftPrice.mul(config.guild_per).toDecimalPlaces(3);
   const diamondsMoney = diamonds.div(10);
-
-  const consume = giftPrice.div(2).ceil().toNumber();
 
   await Guild.increment(
     {
@@ -331,30 +324,10 @@ async function main() {
   }
 }
 
-async function test2() {
-  const end = dayjs("2026/10/31 0:00:00");
-  for (
-    let date = dayjs("2026/10/01 0:00:00");
-    date.valueOf() <= end.valueOf();
-    date = date.add(1, "day")
-  ) {
-    const usable = await getUsableProfit(date);
-    console.log(date.format("YYYY-MM-DD"), usable.toFixed(2));
-  }
-}
-
-test2()
+main()
   .catch((err) => {
     console.error(err);
   })
   .finally(() => {
     process.exit();
   });
-
-// main()
-//   .catch((err) => {
-//     console.error(err);
-//   })
-//   .finally(() => {
-//     process.exit();
-//   });
