@@ -38,6 +38,7 @@ export const dbPlace = new Sequelize({
   timezone: "+08:00",
   ...config.db.place,
   models: [GuildProfitReport, AnchorDayReport],
+  logging: false,
 });
 
 export const dbFinance = new Sequelize({

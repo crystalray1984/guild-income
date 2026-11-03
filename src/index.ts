@@ -141,6 +141,9 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
       },
       user_package_group_id: config.package_group_id,
       touser_package_group_id: config.package_group_id,
+      to_guild_id: {
+        [Op.ne]: config.guild_id,
+      },
     },
   });
 
