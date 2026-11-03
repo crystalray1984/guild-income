@@ -163,7 +163,7 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
     },
   });
 
-  return value.sub(Decimal(allProfit).mul(10));
+  return value.sub(Decimal(allProfit ?? 0).mul(10));
 }
 
 async function addByDate(date: Dayjs) {
