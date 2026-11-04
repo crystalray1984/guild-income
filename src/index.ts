@@ -1,6 +1,5 @@
 import dayjs, { Dayjs } from "dayjs";
 import Decimal from "decimal.js";
-import { random } from "lodash";
 import {
   Attributes,
   CreationAttributes,
@@ -20,7 +19,6 @@ import {
   Guild,
   GuildProfitReport,
   UserAssetsConsumable,
-  Orders,
 } from "./db";
 
 process.env.TZ = "Asia/Shanghai";
@@ -171,7 +169,7 @@ async function addByDate(date: Dayjs) {
   const usable = await getUsableProfit(date);
   if (usable.lt(100)) {
     console.log(
-      `date=${date.format("YYYY-MM-DD")} week=${date.day()} ratio=${ratio.toString()} 可用收益不足 ${usable.toDecimalPlaces(2)}`,
+      `date=${date.format("YYYY-MM-DD")} week=${date.day()} ratio=${ratio.toString()} usable=${usable.toDecimalPlaces(2)} 可用收益不足`,
     );
     return;
   }
@@ -273,7 +271,7 @@ async function addByDate(date: Dayjs) {
   );
 
   console.log(
-    `date=${date.format("YYYY-MM-DD")} week=${date.day()} ratio=${ratio.toString()} price=${giftPrice.toString()} diamonds=${diamonds.toString()}`,
+    `date=${date.format("YYYY-MM-DD")} week=${date.day()} ratio=${ratio.toString()} usable=${usable.toDecimalPlaces(2)} price=${giftPrice.toString()} diamonds=${diamonds.toString()}`,
   );
 }
 
