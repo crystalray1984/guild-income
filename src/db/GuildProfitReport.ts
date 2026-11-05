@@ -8,6 +8,7 @@ import {
   AutoIncrement,
   Column,
   DataType,
+  Default,
   Model,
   PrimaryKey,
   Table,
@@ -44,6 +45,7 @@ export class GuildProfitReport extends Model<
   @Column(DataType.DECIMAL)
   declare gift_price: CreationOptional<string>;
 
+  @Default(0)
   @AllowNull(false)
   @Column(DataType.DECIMAL)
   declare investment_profit: CreationOptional<string>;
