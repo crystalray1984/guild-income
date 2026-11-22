@@ -50,7 +50,7 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
         AND status = 1
         AND payment_time >= ?
         AND payment_time < ?
-        AND NOT (userid IN ?)
+        AND NOT (userid IN (?))
       `,
       values: [
         ["iospay", "googlepay_bmiss"],
@@ -117,7 +117,7 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
         orders
       WHERE
         status = 1
-        AND userid IN ?
+        AND userid IN (?)
       `,
       values: [config.user_id],
     },
