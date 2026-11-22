@@ -189,6 +189,7 @@ async function createFakeOrder(user_id: number) {
     {
       query: `
     SELECT
+      *
     FROM
       iap_config
     WHERE
