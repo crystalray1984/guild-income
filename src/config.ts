@@ -20,7 +20,7 @@ interface ConfigData {
     place: Partial<SequelizeOptions>;
     clearing: Partial<SequelizeOptions>;
   };
-  user_id: number;
+  user_id: number[];
   root_merchant_id: number;
 }
 

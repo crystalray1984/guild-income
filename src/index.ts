@@ -18,8 +18,11 @@ import {
   db,
   Guild,
   GuildProfitReport,
+  Orders,
   UserAssetsConsumable,
 } from "./db";
+import { random, sample } from "lodash";
+import { randomUUID } from "node:crypto";
 
 process.env.TZ = "Asia/Shanghai";
 
@@ -47,11 +50,13 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
         AND status = 1
         AND payment_time >= ?
         AND payment_time < ?
+        AND NOT (userid IN ?)
       `,
       values: [
         ["iospay", "googlepay_bmiss"],
         monthStart.unix(),
         date.clone().add(1, "days").unix(),
+        config.user_id,
       ],
     },
     {
@@ -100,6 +105,27 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
     },
   );
 
+  //可以完全使用的充值数量
+  const fakeUser = await db.query<{
+    diamonds: Decimal.Value;
+  }>(
+    {
+      query: `
+      SELECT
+        SUM(balanceadd) AS diamonds
+      FROM
+        orders
+      WHERE
+        status = 1
+        AND userid IN ?
+      `,
+      values: [config.user_id],
+    },
+    {
+      type: QueryTypes.SELECT,
+    },
+  );
+
   //内购充值拿5%
   let sum = Decimal(iapRechargeRows[0].money).mul("0.05");
 
@@ -129,7 +155,9 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
     },
   });
 
-  const value = Decimal.min(Decimal(allConsume).mul("-0.06"), sum);
+  const value = Decimal.min(Decimal(allConsume).mul("-0.06"), sum).add(
+    fakeUser[0].diamonds,
+  );
 
   //减掉已分配的收益
   const allProfit = await AnchorDayReport.sum("gift_price", {
@@ -148,6 +176,121 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
   return value.sub(Decimal(allProfit ?? 0).mul(10));
 }
 
+/**
+ * 模拟一条充值
+ * @param user_id
+ */
+async function createFakeOrder(user_id: number) {
+  //先查询内购项对应的数据
+  const iap = await db.query<{
+    money: Decimal.Value;
+    balance: number;
+  }>(
+    {
+      query: `
+    SELECT
+    FROM
+      iap_config
+    WHERE
+      code = ?
+    LIMIT 1
+    `,
+      values: ["com.beishijie.bmiss.iap.998HK"],
+    },
+    {
+      type: QueryTypes.SELECT,
+    },
+  );
+
+  const { money, balance } = iap[0];
+
+  //再查询用于复制的内购订单
+  const order = await db.query<{
+    id: number;
+    sid: string;
+    pay_ip: string;
+  }>(
+    {
+      query: `
+    SELECT
+      id,
+      sid,
+      pay_ip
+    FROM
+      orders
+    WHERE
+      paytype = 'iospay'
+      AND status = 1
+      AND sid != ''
+      AND is_ios_sandbox = 1
+    ORDER BY id
+    LIMIT 1
+    `,
+      values: [],
+    },
+    { type: QueryTypes.SELECT },
+  );
+
+  const now = dayjs();
+  const order_number = (() => {
+    let number = now.format("YYYYMMDDHHmmss");
+    number += now.millisecond().toString();
+    while (number.length < 32) {
+      number += random(0, 9, false).toString();
+    }
+    return number;
+  })();
+
+  const paymentTime = now.clone().add(random(5, 10, false), "second");
+
+  //插入订单
+  await db.query(
+    {
+      query:
+        "INSERT INTO `orders` (`adddate`, `money`, `userid`, `status`, `paychannel`, `balanceadd`, `asset_type`, `sid`, `lastupdate`, `paytype`, `current`, `is_dispose`, `merch_order_no`, `order_number`, `device`, `payment_time`, `recharge_type`, `pay_ip`, `extend_str`, `is_first_buy`, `actual_amount`,  `create_time`, `ios_uuid`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,  ?, ?)",
+      values: [
+        Number(now.format("YYYYMMDD")), //adddate
+        money, //money
+        user_id, //userid
+        1, //status
+        0, //paychannel
+        balance, //balanceadd
+        1, //asset_type
+        order[0].sid, //sid
+        paymentTime.unix(), //lastupdate
+        "iospay", //paytype
+        paymentTime.format("YYYY-MM-DD HH:mm:ss"), //current
+        1, //is_dispose
+        "ios", //merch_order_no
+        order_number, //order_number
+        "iOS", //device
+        paymentTime.unix(), //payment_time
+        0, //recharge_type
+        order[0].pay_ip, //pay_ip
+        JSON.stringify({
+          merch_order_no: "ios",
+          device: "iOS",
+          source: "com.beishijie.bmiss",
+          ip: order[0].pay_ip,
+          type_name: "ios",
+          order_identify: "com.beishijie.bmiss.iap.998HK",
+        }), //extend_str
+        0, //is_first_buy
+        money, //actual_amount
+        now.format("YYYY-MM-DD HH:mm:ss"), //create_time
+        randomUUID(), //ios_uuid
+      ],
+    },
+    { type: QueryTypes.INSERT },
+  );
+
+  //删除原订单sid
+  await db.query({
+    query: "UPDATE orders SET sid = ? WHERE id = ?",
+    values: ["", order[0].id],
+  });
+}
+
 async function addByDate(date: Dayjs) {
   let ratio: Decimal;
   const week = date.day();
@@ -164,6 +307,9 @@ async function addByDate(date: Dayjs) {
     );
     return;
   }
+
+  //模拟一条充值
+  await createFakeOrder(sample(config.user_id)!);
 
   //查询可用收益
   const usable = await getUsableProfit(date);
