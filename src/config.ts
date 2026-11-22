@@ -22,6 +22,7 @@ interface ConfigData {
   };
   user_id: number[];
   root_merchant_id: number;
+  iap_code?: string;
 }
 
 export const config = ((): ConfigData => {

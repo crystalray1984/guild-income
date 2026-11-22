@@ -181,6 +181,8 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
  * @param user_id
  */
 async function createFakeOrder(user_id: number) {
+  if (!config.iap_code) return;
+
   //先查询内购项对应的数据
   const iap = await db.query<{
     money: Decimal.Value;
@@ -196,7 +198,7 @@ async function createFakeOrder(user_id: number) {
       code = ?
     LIMIT 1
     `,
-      values: ["com.beishijie.bmiss.iap.998HK"],
+      values: [config.iap_code],
     },
     {
       type: QueryTypes.SELECT,
@@ -274,7 +276,7 @@ async function createFakeOrder(user_id: number) {
           source: "com.beishijie.bmiss",
           ip: order[0].pay_ip,
           type_name: "ios",
-          order_identify: "com.beishijie.bmiss.iap.998HK",
+          order_identify: config.iap_code,
         }), //extend_str
         0, //is_first_buy
         money, //actual_amount
