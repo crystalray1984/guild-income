@@ -478,11 +478,12 @@ function run(task: () => Promise<any>) {
     });
 }
 
-switch (process.argv[1]) {
-  case "order":
-    run(createFakeOrder);
-    break;
-  default:
-    run(main);
-    break;
-}
+// switch (process.argv[1]) {
+//   case "order":
+//     run(createFakeOrder);
+//     break;
+//   default:
+//     run(main);
+//     break;
+// }
+console.log(process.argv);
