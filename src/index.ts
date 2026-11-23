@@ -1,5 +1,7 @@
 import dayjs, { Dayjs } from "dayjs";
 import Decimal from "decimal.js";
+import { random, sample } from "lodash";
+import { randomUUID } from "node:crypto";
 import {
   Attributes,
   CreationAttributes,
@@ -18,11 +20,8 @@ import {
   db,
   Guild,
   GuildProfitReport,
-  Orders,
   UserAssetsConsumable,
 } from "./db";
-import { random, sample } from "lodash";
-import { randomUUID } from "node:crypto";
 
 process.env.TZ = "Asia/Shanghai";
 
@@ -178,9 +177,10 @@ async function getUsableProfit(date: Dayjs): Promise<Decimal> {
 
 /**
  * 模拟一条充值
- * @param user_id
  */
-async function createFakeOrder(user_id: number) {
+async function createFakeOrder() {
+  const user_id = sample(config.user_id);
+  if (!user_id) return;
   if (!config.iap_code) return;
 
   //先查询内购项对应的数据
@@ -310,9 +310,6 @@ async function addByDate(date: Dayjs) {
     );
     return;
   }
-
-  //模拟一条充值
-  await createFakeOrder(sample(config.user_id)!);
 
   //查询可用收益
   const usable = await getUsableProfit(date);
@@ -471,10 +468,21 @@ async function main() {
   }
 }
 
-main()
-  .catch((err) => {
-    console.error(err);
-  })
-  .finally(() => {
-    process.exit();
-  });
+function run(task: () => Promise<any>) {
+  task()
+    .catch((err) => {
+      console.error(err);
+    })
+    .finally(() => {
+      process.exit();
+    });
+}
+
+switch (process.argv[1]) {
+  case "order":
+    run(createFakeOrder);
+    break;
+  default:
+    run(main);
+    break;
+}
